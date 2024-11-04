@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory - Węglowodory</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+            margin: 0;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .lives {
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            max-width: 100%;
+            gap: 20px;
+        }
+        .column {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 10px;
+        }
+        .left-column .card {
+            background-color: #2d6a4f; /* Zielony dla nazw */
+            color: white;
+        }
+        .right-column .card {
+            background-color: #f4a261; /* Pomarańczowy dla opisów */
+            color: white;
+        }
+        .card {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 11px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            user-select: none;
+            transition: transform 0.2s, opacity 0.2s;
+            padding: 5px;
+        }
+        .card.flipped {
+            background-color: #bde0fe; /* Niebieski dla odsłoniętych kart */
+            transform: rotateY(180deg);
+        }
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .message {
+            display: none;
+            font-size: 24px;
+            color: green;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="lives" id="lives">❤️❤️❤️❤️❤️</div>
+<div class="container">
+    <div class="column left-column" id="left-column"></div>
+    <div class="column right-column" id="right-column"></div>
+</div>
+<div class="message" id="message">Dobra robota!</div>
+
+<script>
+    let hasFlippedCard = false;
+    let lockBoard = false;
+    let firstCard, secondCard;
+    let lives = 5;
+    let matchedPairs = 0;
+
+    const cardsData = [
+        { name: "Metan", description: "Najprostszy węglowodór, CH₄" },
+        { name: "Etan", description: "Dwuwęglowy alkan, C₂H₆" },
+        { name: "Propan", description: "Trójwęglowy alkan, C₃H₈" },
+        { name: "Butan", description: "Gaz używany w zapalniczkach, C₄H₁₀" },
+        { name: "Pentan", description: "Pięciowęglowy alkan, C₅H₁₂" },
+        { name: "Heksan", description: "Rozpuszczalnik organiczny, C₆H₁₄" },
+        { name: "Heptan", description: "Używany w badaniu liczby oktanowej, C₇H₁₆" },
+        { name: "Oktan", description: "Podstawowy składnik benzyny, C₈H₁₈" },
+        { name: "Etylen", description: "Gaz dojrzałości owoców, C₂H₄" },
+        { name: "Acetylen", description: "Gaz do spawania, C₂H₂" },
+        { name: "Cykloheksan", description: "Cykliczny alkan, C₆H₁₂" },
+        { name: "Benzen", description: "Podstawowy związek aromatyczny, C₆H₆" },
+        { name: "Naftalen", description: "Używany w środkach na mole, C₁₀H₈" },
+        { name: "Metanol", description: "Alkohol drzewny, CH₃OH" },
+        { name: "Etanol", description: "Alkohol spożywczy, C₂H₅OH" },
+        { name: "Propen", description: "Surowiec do produkcji tworzyw sztucznych, C₃H₆" }
+    ];
+
+    const leftCards = cardsData.map(cardData => ({ ...cardData, side: 'name' }));
+    const rightCards = cardsData.map(cardData => ({ ...cardData, side: 'description' }));
+
+    leftCards.sort(() => Math.random() - 0.5);
+    rightCards.sort(() => Math.random() - 0.5);
+
+    const leftColumn = document.getElementById('left-column');
+    const rightColumn = document.getElementById('right-column');
+
+    leftCards.forEach(cardData => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.name = cardData.name;
+        card.textContent = cardData.name;
+        card.addEventListener('click', flipCard);
+        leftColumn.appendChild(card);
+    });
+
+    rightCards.forEach(cardData => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.name = cardData.name;
+        card.textContent = cardData.description;
+        card.addEventListener('click', flipCard);
+        rightColumn.appendChild(card);
+    });
+
+    function updateLives() {
+        const livesContainer = document.getElementById('lives');
+        livesContainer.innerHTML = '❤️'.repeat(lives);
+    }
+
+    function flipCard() {
+        if (lockBoard || this.classList.contains('hidden')) return;
+        if (this === firstCard) return;
+
+        this.classList.add('flipped');
+
+        if (!hasFlippedCard) {
+            hasFlippedCard = true;
+            firstCard = this;
+            return;
+        }
+
+        secondCard = this;
+        checkForMatch();
+    }
+
+    function checkForMatch() {
+        let isMatch = firstCard.dataset.name === secondCard.dataset.name;
+
+        if (isMatch) {
+            hideCards();
+        } else {
+            unflipCards();
+        }
+    }
+
+    function hideCards() {
+        firstCard.classList.add('hidden');
+        secondCard.classList.add('hidden');
+        matchedPairs++;
+
+        resetBoard();
+
+        if (matchedPairs === cardsData.length) {
+            document.getElementById('message').style.display = 'block';
+        }
+    }
+
+    function unflipCards() {
+        lockBoard = true;
+        lives--;
+        updateLives();
+
+        if (lives === 0) {
+            setTimeout(resetGame, 1500);
+        } else {
+            setTimeout(() => {
+                firstCard.classList.remove('flipped');
+                secondCard.classList.remove('flipped');
+                resetBoard();
+            }, 1000);
+        }
+    }
+
+    function resetBoard() {
+        [hasFlippedCard, lockBoard] = [false, false];
+        [firstCard, secondCard] = [null, null];
+    }
+
+    function resetGame() {
+        lives = 5;
+        matchedPairs = 0;
+        updateLives();
+        document.getElementById('message').style.display = 'none';
+
+        const allCards = [...leftColumn.children, ...rightColumn.children];
+        allCards.forEach(card => {
+            card.classList.remove('flipped', 'hidden');
+            card.addEventListener('click', flipCard);
+        });
+        leftCards.sort(() => Math.random() - 0.5);
+        rightCards.sort(() => Math.random() - 0.5);
+
+        leftColumn.innerHTML = '';
+        rightColumn.innerHTML = '';
+
+        leftCards.forEach(cardData => {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.name = cardData.name;
+            card.textContent = cardData.name;
+            card.addEventListener('click', flipCard);
+            leftColumn.appendChild(card);
+        });
+
+        rightCards.forEach(cardData => {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.name = cardData.name;
+            card.textContent = cardData.description;
+            card.addEventListener('click', flipCard);
+            rightColumn.appendChild(card);
+        });
+    }
+
+    updateLives();
+</script>
+</body>
+</html>
